@@ -20,7 +20,7 @@ public class ProductoController {
     @GetMapping
     public ResponseEntity<List<Producto>> getAllProductos() {
         return ResponseEntity.ok(productoService.getAllConStock());
-    }   
+    }
 
     // GET /productos/{id} → Detalle del producto
     @GetMapping("/{id}")
@@ -39,7 +39,7 @@ public class ProductoController {
     }
 
     // PUT /productos/{id} → Modificar producto
-    @PutMapping( "/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<Producto> updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
         Producto updated = productoService.update(id, producto);
         if (updated == null) {
