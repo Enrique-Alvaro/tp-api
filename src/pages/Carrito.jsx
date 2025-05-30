@@ -1,8 +1,9 @@
 import { useState } from "react";
-
+import { useParams, useNavigate } from 'react-router-dom'
 const Carrito = () => {
   const [carrito, setCarrito] = useState(JSON.parse(localStorage.getItem("carrito")) || []);
   const [metodoPago, setMetodoPago] = useState("");
+  const navigate = useNavigate();
 
   const totalCarrito = carrito.reduce((acc, prod) => acc + prod.precio, 0);
 
@@ -22,9 +23,10 @@ const Carrito = () => {
 
   return (
     <>
+    <div className="boton"><button onClick={() => navigate(-1)}>← Volver</button></div>
     <div className="carrito-div">
       <h2>Carrito de compras</h2>
-      <p>Total: ${totalCarrito}</p>
+      <p className="total-p">Total: ${totalCarrito}</p>
       <div className="carrito-grid">
         {carrito.length === 0 ? (
           <p>El carrito está vacío</p>
@@ -44,7 +46,7 @@ const Carrito = () => {
           Finalizar compra
         </button>
       )}
-      {metodoPago && <p>Método de pago elegido: {metodoPago}</p>}
+      {metodoPago && <p className="metodo-pago">Método de pago elegido: $ {metodoPago} $</p>}
     </div>
     </>
   );
