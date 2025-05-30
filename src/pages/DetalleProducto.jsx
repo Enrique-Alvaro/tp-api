@@ -14,7 +14,7 @@ const DetalleProducto = () => {
       <img src={producto.imagen} alt={producto.nombre} />
       <h2>{producto.nombre}</h2>
       <p>Precio: ${producto.precio}</p>
-      <p>¡Este producto es tan bueno que hasta el WiFi lo quiere!</p>
+      <p>Este producto esta piola... ¡Compralo!</p>
     </div>
   )
 }
