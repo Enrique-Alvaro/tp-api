@@ -1,21 +1,18 @@
-import Form from './form'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Carrito from './pages/Carrito'
+import DetalleProducto from './pages/DetalleProducto'
 import './App.css'
-import { useState } from 'react'
-
-const App =()=> {
-   const [cantidadCarrito, setCantidadCarrito] = useState(0)
+const App = () => {
   return (
-    <>
-      <center>
-        <h1>Tienda online Marcketplace</h1>
-        <Form setCantidadCarrito={setCantidadCarrito} />
-      </center>
-      
-      <div className="carrito-flotante">
-        <img src="https://cdn-icons-png.flaticon.com/512/9341/9341730.png" alt="Carrito" />
-        <span className="contador">{cantidadCarrito}</span>
-      </div>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/carrito" element={<Carrito />} />
+        <Route path="/producto/:id" element={<DetalleProducto />} />
+      </Routes>
+   </BrowserRouter>
+
   )
 }
 
