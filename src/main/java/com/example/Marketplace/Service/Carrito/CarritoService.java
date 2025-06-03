@@ -11,7 +11,7 @@ public interface CarritoService {
     Carrito agregarProducto(Long usuarioId, Long productoId, int cantidad);
 
     // Eliminar un producto del carrito de un usuario
-    Carrito eliminarProducto(Long usuarioId, Long productoId);
+    boolean eliminarProducto(Long usuarioId, Long productoId);
 
     // Vaciar el carrito de un usuario
     void vaciarCarrito(Long usuarioId);

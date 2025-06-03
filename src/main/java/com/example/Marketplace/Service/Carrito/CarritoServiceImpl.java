@@ -4,12 +4,21 @@ import com.example.Marketplace.Entity.Carrito;
 import com.example.Marketplace.Entity.ItemCarrito;
 import com.example.Marketplace.Entity.Producto;
 import com.example.Marketplace.Entity.Usuario;
+import com.example.Marketplace.Exception.ProductoNotFoundException;
+import com.example.Marketplace.Exception.StockInsuficienteException;
+import com.example.Marketplace.Exception.UsuarioNotFoundException;
 import com.example.Marketplace.Repository.CarritoRepository;
+import com.example.Marketplace.Repository.ItemCarritoRepository;
 import com.example.Marketplace.Repository.ProductoRepository;
 import com.example.Marketplace.Repository.UsuarioRepository;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 
 @Service
@@ -19,6 +28,8 @@ public class CarritoServiceImpl implements CarritoService {
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
     private final CarritoRepository carritoRepository;
+    private final ItemCarritoRepository itemCarritoRepository;
+
 
     @Override
     public Carrito obtenerCarrito(Long usuarioId) {
@@ -36,44 +47,75 @@ public class CarritoServiceImpl implements CarritoService {
         return usuario.getCarrito();
     }
 
-    @Override
+
+    @Transactional
     public Carrito agregarProducto(Long usuarioId, Long productoId, int cantidad) {
-        Carrito carrito = obtenerCarrito(usuarioId);
+        // Validaciones iniciales
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow(() -> new UsuarioNotFoundException(usuarioId));
+        
         Producto producto = productoRepository.findById(productoId)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-
-        if (carrito.getItems() == null) {
-            carrito.setItems(new ArrayList<>());
+            .orElseThrow(() -> new ProductoNotFoundException(productoId));
+        
+        if (producto.getStock() < cantidad) {
+            throw new StockInsuficienteException(
+                "Stock insuficiente. Disponible: " + producto.getStock()
+            );
         }
-
-        // Crear y agregar el nuevo ItemCarrito con referencia al carrito
-        ItemCarrito item = new ItemCarrito(carrito, producto, cantidad);
-        carrito.getItems().add(item);
-
-        carritoRepository.save(carrito);
-        return carrito;
+        
+        // Obtener o crear carrito
+        Carrito carrito = carritoRepository.findByUsuarioId(usuarioId)
+            .orElseGet(() -> {
+                Carrito nuevoCarrito = new Carrito();
+                nuevoCarrito.setUsuario(usuario);
+                return carritoRepository.save(nuevoCarrito);
+            });
+        
+        // Buscar ítem existente
+        Optional<ItemCarrito> itemExistente = itemCarritoRepository
+            .findByCarritoIdAndProductoId(carrito.getId(), productoId);
+        
+        ItemCarrito item;
+        
+        if (itemExistente.isPresent()) {
+            item = itemExistente.get();
+            item.setCantidad(item.getCantidad() + cantidad);
+        } else {
+            item = new ItemCarrito();
+            item.setCarrito(carrito);
+            item.setProducto(producto);
+            item.setCantidad(cantidad);
+        }
+        
+        itemCarritoRepository.save(item);
+        
+        carrito.setTotal(calcularTotalCarrito(carrito.getId()));
+        return carritoRepository.save(carrito);
     }
 
     @Override
-    public Carrito eliminarProducto(Long usuarioId, Long productoId) {
+    public boolean eliminarProducto(Long usuarioId, Long productoId) {
         Carrito carrito = obtenerCarrito(usuarioId);
-
-        if (carrito.getItems() != null) {
-            carrito.getItems().removeIf(item -> item.getProducto().getId().equals(productoId));
+        Optional<ItemCarrito> itemOpt = itemCarritoRepository.findByCarritoIdAndProductoId(carrito.getId(), productoId);
+        if (itemOpt.isPresent()) {
+            itemCarritoRepository.delete(itemOpt.get());
+            carrito.setTotal(calcularTotalCarrito(carrito.getId()));
+            carritoRepository.save(carrito);
+            return true;
         }
-
-        carritoRepository.save(carrito);
-        return carrito;
+        return false;
     }
 
     @Override
     public void vaciarCarrito(Long usuarioId) {
         Carrito carrito = obtenerCarrito(usuarioId);
-
-        if (carrito.getItems() != null) {
-            carrito.getItems().clear();
-        }
-
+        itemCarritoRepository.deleteByCarritoId(carrito.getId());
+        carrito.setTotal(BigDecimal.ZERO);
         carritoRepository.save(carrito);
+    }
+
+    private BigDecimal calcularTotalCarrito(Long carritoId) {
+        return itemCarritoRepository.getTotalCarrito(carritoId)
+            .orElse(BigDecimal.ZERO);
     }
 }

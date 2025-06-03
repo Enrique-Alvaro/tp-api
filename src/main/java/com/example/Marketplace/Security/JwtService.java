@@ -19,6 +19,10 @@ public class JwtService {
         return extractAllClaims(token).getSubject();
     }
 
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
@@ -27,6 +31,7 @@ public class JwtService {
     public String generateToken(Usuario usuario) {
         return Jwts.builder()
                 .setSubject(usuario.getUsername())
+                .claim("role", usuario.getRole().name())  // <-- agregamos rol
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 86400000)) // 1 día
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)

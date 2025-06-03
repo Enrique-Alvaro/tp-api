@@ -1,18 +1,28 @@
 package com.example.Marketplace.Service.Producto;
 
+import com.example.Marketplace.DTO.ProductoDTO;
+import com.example.Marketplace.Entity.Categoria;
 import com.example.Marketplace.Entity.Producto;
+import com.example.Marketplace.Entity.Rol;
+import com.example.Marketplace.Entity.Usuario;
+import com.example.Marketplace.Exception.ProductoNotFoundException;
+import com.example.Marketplace.Exception.UsuarioNotFoundException;
 import com.example.Marketplace.Repository.ProductoRepository;
+import com.example.Marketplace.Repository.UsuarioRepository;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class ProductoServiceImpl implements ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final UsuarioRepository usuarioRepository;
 
     // Obtener todos los productos con stock > 0
     public List<Producto> getAllConStock() {
@@ -21,20 +31,49 @@ public class ProductoServiceImpl implements ProductoService {
 
     // Obtener producto por ID
     public Producto getById(Long id) {
-        return productoRepository.findById(id).orElse(null);
+        return productoRepository.findById(id)
+            .orElseThrow(() -> new ProductoNotFoundException(id)); // Lanza excepción personalizada
     }
 
-    // Crear producto
-    public Producto create(Producto producto) {
-        return productoRepository.save(producto);
+    @Override
+    @Transactional
+    public Producto create(ProductoDTO dto, Usuario vendedor) {
+    if (vendedor == null || vendedor.getId() == null) {
+        throw new IllegalArgumentException("El producto debe tener un usuario asociado");
     }
+
+    Usuario usuario = usuarioRepository.findById(vendedor.getId())
+        .orElseThrow(() -> new UsuarioNotFoundException(vendedor.getId()));
+
+    if (usuario.getRole() == Rol.COMPRADOR) {
+        usuario.setRole(Rol.VENDEDOR); // lo promociona a vendedor
+        usuarioRepository.save(usuario);
+    }
+
+    // Crear el producto con los datos del DTO
+    Producto producto = new Producto();
+    producto.setNombre(dto.getNombre());
+    producto.setDescripcion(dto.getDescripcion());
+    producto.setPrecio(dto.getPrecio());
+    producto.setStock(dto.getStock());
+
+    try {
+        producto.setCategoria(Categoria.valueOf(dto.getCategoria()));
+    } catch (IllegalArgumentException e) {
+        producto.setCategoria(Categoria.OTROS); // fallback
+    }
+
+    producto.setVendedor(usuario);
+
+    return productoRepository.save(producto);
+}
+
 
     // Actualizar producto
     public Producto update(Long id, Producto producto) {
-        Optional<Producto> optional = productoRepository.findById(id);
-        if (optional.isEmpty()) return null;
+        Producto existente = productoRepository.findById(id)
+            .orElseThrow(() -> new ProductoNotFoundException(id)); // Lanza excepción si no existe
 
-        Producto existente = optional.get();
         existente.setNombre(producto.getNombre());
         existente.setDescripcion(producto.getDescripcion());
         existente.setPrecio(producto.getPrecio());
@@ -47,7 +86,7 @@ public class ProductoServiceImpl implements ProductoService {
     // Eliminar producto
     public boolean delete(Long id) {
         if (!productoRepository.existsById(id)) {
-            return false;
+            throw new ProductoNotFoundException(id); // Lanza excepción si no existe
         }
         productoRepository.deleteById(id);
         return true;

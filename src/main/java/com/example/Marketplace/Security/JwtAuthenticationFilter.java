@@ -6,8 +6,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -19,7 +20,6 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UsuarioDetailsService usuarioDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -33,9 +33,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 final String jwt = authHeader.substring(7);
                 final String email = jwtService.extractUsername(jwt);
+                final String role = jwtService.extractRole(jwt);
 
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = usuarioDetailsService.loadUserByUsername(email);
+
+                    // Creamos UserDetails con el rol que viene del token
+                    UserDetails userDetails = User.builder()
+                            .username(email)
+                            .password("") // No se usa aquí
+                            .roles(role)
+                            .build();
+                    System.out.println("🔐 JWT Role: " + role);
+                    System.out.println("🔐 Spring Authority: " + userDetails.getAuthorities());
 
                     if (jwtService.isTokenValid(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authToken =
@@ -53,6 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             System.out.println("Error en el filtro JWT: " + e.getMessage());
         }
 
-        filterChain.doFilter(request, response); // Siempre continuar la request
+        filterChain.doFilter(request, response);
     }
+    
 }
