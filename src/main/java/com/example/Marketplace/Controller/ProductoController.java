@@ -34,28 +34,33 @@ public class ProductoController {
 
     // POST /productos → Crear producto
     @PostMapping
-    public ResponseEntity<Producto> createProducto(@RequestBody Producto producto) {
-        return ResponseEntity.ok(productoService.create(producto));
+    public ResponseEntity<String> createProducto(@RequestBody Producto producto) {
+        Producto creado = productoService.create(producto);
+        if (creado != null) {
+            return ResponseEntity.ok("Producto creado correctamente con ID: " + creado.getId());
+        } else {
+            return ResponseEntity.badRequest().body("No se pudo crear el producto.");
+        }
     }
 
     // PUT /productos/{id} → Modificar producto
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
+    public ResponseEntity<String> updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
         Producto updated = productoService.update(id, producto);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok("Producto actualizado correctamente con ID: " + updated.getId());
     }
 
     // DELETE /productos/{id} → Eliminar producto
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProducto(@PathVariable Long id) {
+    public ResponseEntity<String> deleteProducto(@PathVariable Long id) {
         boolean eliminado = productoService.delete(id);
         if (!eliminado) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Producto eliminado correctamente con ID: " + id);
     }
 
 

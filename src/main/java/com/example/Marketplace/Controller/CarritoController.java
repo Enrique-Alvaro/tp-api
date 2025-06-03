@@ -30,12 +30,16 @@ public class CarritoController {
 
     // DELETE /carrito/{usuarioId}/eliminar/{productoId} → Eliminar producto del carrito de un usuario
     @DeleteMapping("/{usuarioId}/eliminar/{productoId}")
-    public ResponseEntity<Carrito> eliminarProducto(
+    public ResponseEntity<String> eliminarProducto(
             @PathVariable Long usuarioId, 
             @PathVariable Long productoId) {
-        return ResponseEntity.ok(carritoService.eliminarProducto(usuarioId, productoId));
+        boolean eliminado = carritoService.eliminarProducto(usuarioId, productoId);
+        if (eliminado) {
+            return ResponseEntity.ok("Producto eliminado correctamente del carrito.");
+        } else {
+            return ResponseEntity.badRequest().body("No se pudo eliminar el producto del carrito.");
+        }
     }
-
     // DELETE /carrito/{usuarioId}/vaciar → Vaciar el carrito de un usuario
     @DeleteMapping("/{usuarioId}/vaciar")
     public ResponseEntity<Void> vaciarCarrito(@PathVariable Long usuarioId) {

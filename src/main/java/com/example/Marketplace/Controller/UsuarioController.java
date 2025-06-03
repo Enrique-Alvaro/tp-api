@@ -27,18 +27,28 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public ResponseEntity<Usuario> create(@RequestBody Usuario usuario) {
-        return ResponseEntity.ok(usuarioService.create(usuario));
+    public ResponseEntity<String> create(@RequestBody Usuario usuario) {
+        usuarioService.create(usuario);
+        return ResponseEntity.ok("Usuario creado correctamente");
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> update(@PathVariable Long id, @RequestBody Usuario usuario) {
+    public ResponseEntity<String> update(@PathVariable Long id, @RequestBody Usuario usuario) {
         Usuario updated = usuarioService.update(id, usuario);
-        return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+        if (updated != null) {
+            return ResponseEntity.ok("Usuario actualizado correctamente");
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        return usuarioService.delete(id) ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    public ResponseEntity<String> delete(@PathVariable Long id) {
+        boolean deleted = usuarioService.delete(id);
+        if (deleted) {
+            return ResponseEntity.ok("Usuario eliminado correctamente");
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
