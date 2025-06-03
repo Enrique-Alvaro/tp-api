@@ -1,9 +1,14 @@
 package com.example.Marketplace.Controller;
 
-import com.example.Marketplace.Entity.Carrito;
+import com.example.Marketplace.DTO.CarritoResponseDTO;
+import com.example.Marketplace.DTO.ItemCarritoRequestDTO;
+import com.example.Marketplace.Entity.Usuario;
 import com.example.Marketplace.Service.Carrito.CarritoService;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,38 +18,36 @@ public class CarritoController {
 
     private final CarritoService carritoService;
 
-    // GET /carrito/{usuarioId} → Obtener el carrito de un usuario
-    @GetMapping("/{usuarioId}")
-    public ResponseEntity<Carrito> obtenerCarrito(@PathVariable Long usuarioId) {
-        return ResponseEntity.ok(carritoService.obtenerCarrito(usuarioId));
+    @GetMapping("/get")
+    public ResponseEntity<CarritoResponseDTO> obtenerCarrito(@AuthenticationPrincipal Usuario usuario) { 
+        System.out.println("Holaaaa");
+        System.out.println(usuario.getId());
+        return ResponseEntity.ok(carritoService.obtenerCarritoDTO(usuario.getId()));
     }
 
-    // POST /carrito/{usuarioId}/agregar → Agregar producto al carrito de un usuario
-    @PostMapping("/{usuarioId}/agregar")
-    public ResponseEntity<Carrito> agregarProducto(
-            @PathVariable Long usuarioId,
-            @RequestParam Long productoId,
-            @RequestParam int cantidad) {
-        return ResponseEntity.ok(carritoService.agregarProducto(usuarioId, productoId, cantidad));
+    @PostMapping("/items")
+    public ResponseEntity<CarritoResponseDTO> agregarItem(
+        @AuthenticationPrincipal Usuario usuario,
+        @Valid @RequestBody ItemCarritoRequestDTO itemDTO
+    ) {
+        System.out.println("Holaaaaaaaaaaaaa");
+        System.out.println(usuario.getId());
+        return ResponseEntity.ok(carritoService.agregarProducto(usuario.getId(), itemDTO));
     }
 
-    // DELETE /carrito/{usuarioId}/eliminar/{productoId} → Eliminar producto del carrito de un usuario
-    @DeleteMapping("/{usuarioId}/eliminar/{productoId}")
-    public ResponseEntity<String> eliminarProducto(
-            @PathVariable Long usuarioId, 
-            @PathVariable Long productoId) {
-        boolean eliminado = carritoService.eliminarProducto(usuarioId, productoId);
-        if (eliminado) {
-            return ResponseEntity.ok("Producto eliminado correctamente del carrito.");
-        } else {
-            return ResponseEntity.badRequest().body("No se pudo eliminar el producto del carrito.");
-        }
+    @DeleteMapping("/items/{productoId}")
+    public ResponseEntity<CarritoResponseDTO> eliminarItem(
+        @AuthenticationPrincipal Usuario usuario,
+        @PathVariable Long productoId
+    ) {
+        System.out.println("Holaaaaaaaaaaaaa");
+        System.out.println("Holaaaaaaaaaaaaa");
+        System.out.println("Holaaaaaaaaaaaaa");
+        return ResponseEntity.ok(carritoService.eliminarProducto(usuario.getId(), productoId));
     }
-    // DELETE /carrito/{usuarioId}/vaciar → Vaciar el carrito de un usuario
-    @DeleteMapping("/{usuarioId}/vaciar")
-    public ResponseEntity<Void> vaciarCarrito(@PathVariable Long usuarioId) {
-        carritoService.vaciarCarrito(usuarioId);
-        return ResponseEntity.noContent().build();
+
+    @DeleteMapping
+    public ResponseEntity<CarritoResponseDTO> vaciarCarrito(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(carritoService.vaciarCarrito(usuario.getId()));
     }
 }
- 

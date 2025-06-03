@@ -38,16 +38,14 @@ public class authenticationService {
     // Método para login de usuario (corrigiendo el tipo de parámetro)
     public AuthenticationResponse login(AuthenticationRequestLogin request) {
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
-        // Comprobamos si la contraseña es correcta
         if (!passwordEncoder.matches(request.getPassword(), usuario.getPassword())) {
-            throw new RuntimeException("Contraseña incorrecta");
+            throw new IllegalArgumentException("Contraseña incorrecta");
         }
 
-        // Generamos un token JWT
         String token = jwtService.generateToken(usuario);
-        
+
         return new AuthenticationResponse(token);
     }
 }

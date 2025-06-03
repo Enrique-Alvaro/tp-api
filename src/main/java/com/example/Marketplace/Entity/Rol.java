@@ -2,6 +2,9 @@ package com.example.Marketplace.Entity;
 
 public enum Rol {
     COMPRADOR,
-    VENDEDOR
-}
+    VENDEDOR;
 
+     public String getAuthority() {
+        return "ROLE_" + this.name();
+    }
+}

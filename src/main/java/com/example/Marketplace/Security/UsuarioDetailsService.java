@@ -23,7 +23,7 @@ public class UsuarioDetailsService implements UserDetailsService {
         return User.builder()
                 .username(usuario.getEmail())
                 .password(usuario.getPassword())
-                .roles(usuario.getRole().name()) // Asegurate de que getRole() devuelva un enum con .name()
+                .roles(usuario.getRole().name())
                 .build();
     }
 }

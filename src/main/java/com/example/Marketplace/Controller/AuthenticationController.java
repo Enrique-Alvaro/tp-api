@@ -20,22 +20,30 @@ public class AuthenticationController {
 
     // Endpoint para registrar un nuevo usuario
     @PostMapping("/register")
-    public ResponseEntity<AuthenticationResponse> register(@RequestBody AuthenticationRequest request) {
-        // Lógica para registrar al usuario
-        Usuario usuario = usuarioService.create(new Usuario(
-            request.getUsername(),
-            request.getEmail(),
-            request.getPassword(),
-            request.getNombre(),
-            request.getApellido(),
-            request.getRole()  // Asegúrate de tener este campo en tu request
-        ));
-        return ResponseEntity.ok(authenticationService.register(usuario));
+    public ResponseEntity<?> register(@RequestBody AuthenticationRequest request) {
+        try {
+            Usuario usuario = usuarioService.create(new Usuario(
+                request.getUsername(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getNombre(),
+                request.getApellido(),
+                request.getRole()
+            ));
+            return ResponseEntity.ok(authenticationService.register(usuario));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("No se pudo registrar el usuario. Por favor, verifica los datos ingresados o intenta más tarde.");
+        }
     }
 
     // Endpoint para login de usuario
     @PostMapping("/login")
-    public ResponseEntity<AuthenticationResponse> login(@RequestBody AuthenticationRequestLogin request) {
-        return ResponseEntity.ok(authenticationService.login(request));
+    public ResponseEntity<?> login(@RequestBody AuthenticationRequestLogin request) {
+        try {
+            AuthenticationResponse response = authenticationService.login(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Credenciales inválidas o error de autenticación.");
+        }
     }
 }

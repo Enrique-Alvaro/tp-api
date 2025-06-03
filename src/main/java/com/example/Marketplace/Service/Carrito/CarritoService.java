@@ -1,18 +1,19 @@
 package com.example.Marketplace.Service.Carrito;
 
-import com.example.Marketplace.Entity.Carrito;
+import com.example.Marketplace.DTO.CarritoResponseDTO;
+import com.example.Marketplace.DTO.ItemCarritoRequestDTO;
 
 public interface CarritoService {
 
     // Obtener el carrito de un usuario específico
-    Carrito obtenerCarrito(Long usuarioId);
+    CarritoResponseDTO obtenerCarritoDTO(Long usuarioId);
 
     // Agregar un producto al carrito de un usuario
-    Carrito agregarProducto(Long usuarioId, Long productoId, int cantidad);
+    CarritoResponseDTO agregarProducto(Long usuarioId, ItemCarritoRequestDTO itemDTO);
 
     // Eliminar un producto del carrito de un usuario
-    boolean eliminarProducto(Long usuarioId, Long productoId);
+    CarritoResponseDTO eliminarProducto(Long usuarioId, Long productoId);
 
     // Vaciar el carrito de un usuario
-    void vaciarCarrito(Long usuarioId);
+    CarritoResponseDTO vaciarCarrito(Long usuarioId);
 }
