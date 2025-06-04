@@ -40,9 +40,6 @@ public class CarritoController {
         @AuthenticationPrincipal Usuario usuario,
         @PathVariable Long productoId
     ) {
-        System.out.println("Holaaaaaaaaaaaaa");
-        System.out.println("Holaaaaaaaaaaaaa");
-        System.out.println("Holaaaaaaaaaaaaa");
         return ResponseEntity.ok(carritoService.eliminarProducto(usuario.getId(), productoId));
     }
 

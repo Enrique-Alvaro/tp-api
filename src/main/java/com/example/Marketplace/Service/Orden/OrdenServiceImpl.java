@@ -121,19 +121,6 @@ public class OrdenServiceImpl {
         }
     }
 
-    // private BigDecimal calcularTotalConDescuento(BigDecimal subtotal, String codigoDescuento) {
-    //     BigDecimal total = subtotal;
-        
-    //     // Aplicar 10% de descuento si el código es "PROMO2025"
-    //     if ("PROMO2025".equalsIgnoreCase(codigoDescuento)) {
-    //         BigDecimal descuento = subtotal.multiply(new BigDecimal("0.10"));
-    //         total = subtotal.subtract(descuento);
-    //         System.out.println("Descuento aplicado: -" + descuento);
-    //     }
-        
-    //     return total;
-    // }
-    
     private OrdenResponseDTO convertirAOrdenResponseDTO(Orden orden) {
         List<OrdenResponseDTO.ItemOrdenDTO> itemsDTO = orden.getItems().stream()
             .map(item -> OrdenResponseDTO.ItemOrdenDTO.builder()
