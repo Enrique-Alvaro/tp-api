@@ -30,7 +30,6 @@ public class CarritoController {
         @AuthenticationPrincipal Usuario usuario,
         @Valid @RequestBody ItemCarritoRequestDTO itemDTO
     ) {
-        System.out.println("Holaaaaaaaaaaaaa");
         System.out.println(usuario.getId());
         return ResponseEntity.ok(carritoService.agregarProducto(usuario.getId(), itemDTO));
     }

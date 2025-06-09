@@ -16,9 +16,16 @@ public class OrdenResponseDTO {
     private String estado;
     private BigDecimal total;
     private BigDecimal subtotal;
+    private BigDecimal descuentoAplicado;
     private String direccionEnvio;
     private String metodoPago;
     private String codigoDescuento;
+    // Información de pago
+    private String codigoTransaccion;
+    private String detallesPago; // Últimos 4 dígitos de tarjeta, etc.
+    private LocalDateTime fechaPago;
+    // Información de envío
+    private String notasDeEntrega;
     private List<ItemOrdenDTO> items;
     
     @Data

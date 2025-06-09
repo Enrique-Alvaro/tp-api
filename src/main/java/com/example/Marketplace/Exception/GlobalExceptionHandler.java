@@ -32,5 +32,21 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Usuario no encontrado");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
     }
+    
+    @ExceptionHandler(StockInsuficienteException.class)
+    public ResponseEntity<ProblemDetail> handleStockInsuficiente(StockInsuficienteException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Stock insuficiente");
+        problemDetail.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+    
+    @ExceptionHandler(PagoRechazadoException.class)
+    public ResponseEntity<ProblemDetail> handlePagoRechazado(PagoRechazadoException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Pago rechazado");
+        problemDetail.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
 
 }

@@ -1,8 +1,6 @@
 package com.example.Marketplace.DTO;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 @Data
@@ -11,11 +9,15 @@ public class OrdenRequestDTO {
     private String direccionEnvio;
     
     @NotBlank
-    private String metodoPago;
+    private String metodoPago;  // TARJETA, EFECTIVO, TRANSFERENCIA
     
-    @NotNull
-    @Positive
-    private Long carritoId;
-
+    // Detalles de pago (opcionales dependiendo del método de pago)
+    private String numeroTarjeta;  // Últimos 4 dígitos o simulación
+    private String titularTarjeta;
+    
+    // Información de envío adicional
+    private String notasDeEntrega;
+    
+    // No longer requiring carritoId as it will be obtained from the user
     private String codigoDescuento;
 }

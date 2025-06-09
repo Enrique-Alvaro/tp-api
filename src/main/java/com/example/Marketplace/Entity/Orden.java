@@ -43,9 +43,17 @@ public class Orden {
     private String numeroFactura; // Número único de factura
     private String codigoDescuento;
     
+    // Información de pago
+    private String codigoTransaccion;
+    private String detallesPago; // Datos adicionales del pago (ej. últimos 4 dígitos de tarjeta)
+    private LocalDateTime fechaPago;
+    
+    // Información de envío
+    private String notasDeEntrega;
+    
     @PrePersist
     public void generarNumeroFactura() {
-        this.numeroFactura = "FAC-" + LocalDateTime.now().getYear() + "-" + String.format("%06d", this.id);
+        this.numeroFactura = "FAC-" + LocalDateTime.now().getYear() + "-" + System.currentTimeMillis();
     }
 
     

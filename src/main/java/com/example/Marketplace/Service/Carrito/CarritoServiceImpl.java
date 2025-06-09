@@ -57,13 +57,6 @@ public class CarritoServiceImpl implements CarritoService {
         Producto producto = productoRepository.findById(itemDTO.getProductoId())
             .orElseThrow(() -> new ProductoNotFoundException(itemDTO.getProductoId()));
 
-        if (producto.getStock() < itemDTO.getCantidad()) {
-            throw new StockInsuficienteException(
-                "Stock insuficiente para " + producto.getNombre() + 
-                ". Disponible: " + producto.getStock()
-            );
-        }
-
         // Obtener o crear carrito atómicamente
         Carrito carrito = obtenerOCrearCarrito(usuarioId);
 
@@ -72,20 +65,50 @@ public class CarritoServiceImpl implements CarritoService {
             .findByCarritoIdAndProductoId(carrito.getId(), itemDTO.getProductoId());
 
         ItemCarrito item;
+        
         if (itemExistente.isPresent()) {
             item = itemExistente.get();
-            item.setCantidad(item.getCantidad() + itemDTO.getCantidad());
+            int cantidadActual = item.getCantidad();
+            int nuevaCantidad = itemDTO.getCantidad();
+            
+            // Si queremos reducir la cantidad
+            if (nuevaCantidad < cantidadActual) {
+                // Devolvemos la diferencia al stock
+                int diferencia = cantidadActual - nuevaCantidad;
+                producto.setStock(producto.getStock() + diferencia);
+                item.setCantidad(nuevaCantidad);
+            } else if (nuevaCantidad > cantidadActual) {
+                // Queremos aumentar la cantidad, verificamos stock
+                int diferencia = nuevaCantidad - cantidadActual;
+                if (producto.getStock() < diferencia) {
+                    throw new StockInsuficienteException(
+                        "Stock insuficiente para " + producto.getNombre() + 
+                        ". Disponible: " + producto.getStock()
+                    );
+                }
+                producto.setStock(producto.getStock() - diferencia);
+                item.setCantidad(nuevaCantidad);
+            } else {
+                // La cantidad es la misma, no se hace nada
+            }
         } else {
+            // Nuevo ítem, verificar stock completo
+            if (producto.getStock() < itemDTO.getCantidad()) {
+                throw new StockInsuficienteException(
+                    "Stock insuficiente para " + producto.getNombre() + 
+                    ". Disponible: " + producto.getStock()
+                );
+            }
             item = new ItemCarrito();
             item.setCarrito(carrito);
             item.setProducto(producto);
             item.setCantidad(itemDTO.getCantidad());
+            
+            // Actualizar stock del producto
+            producto.setStock(producto.getStock() - itemDTO.getCantidad());
         }
 
         itemCarritoRepository.save(item);
-
-        // Actualizar stock del producto
-        producto.setStock(producto.getStock() - itemDTO.getCantidad());
         productoRepository.save(producto);
 
         // Actualizar total del carrito

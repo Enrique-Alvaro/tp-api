@@ -35,7 +35,12 @@ public class Producto {
     @ElementCollection
     private List<String> imagenes; // Podés guardar URLs o paths de las imágenes
 
+    // Vendedor es obligatorio y cada producto debe tener un vendedor asociado
     @ManyToOne
-    @JoinColumn(name = "vendedor_id")
+    @JoinColumn(name = "vendedor_id", nullable = false)
     private Usuario vendedor;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 }

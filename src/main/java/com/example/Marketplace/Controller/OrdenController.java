@@ -1,5 +1,6 @@
 package com.example.Marketplace.Controller;
 
+import com.example.Marketplace.DTO.OrdenConfirmacionDTO;
 import com.example.Marketplace.DTO.OrdenRequestDTO;
 import com.example.Marketplace.DTO.OrdenResponseDTO;
 import com.example.Marketplace.Entity.Usuario;
@@ -22,29 +23,69 @@ public class OrdenController {
     
     private final OrdenServiceImpl ordenService;
     
-    @PostMapping
-    public ResponseEntity<OrdenResponseDTO> crearOrden(
+    // Endpoint para obtener un resumen de la orden antes de confirmar
+    @PostMapping("/confirmar")
+    public ResponseEntity<?> confirmarOrden(
         @AuthenticationPrincipal Usuario usuario,
         @Valid @RequestBody OrdenRequestDTO ordenRequest
     ) {
-        OrdenResponseDTO orden = ordenService.crearOrdenDesdeCarrito(usuario.getId(), ordenRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(orden);
+        try {
+            OrdenConfirmacionDTO confirmacion = ordenService.obtenerResumenOrden(usuario.getId(), ordenRequest);
+            return ResponseEntity.ok(confirmacion);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
     
+    // Endpoint para procesar el pago y crear la orden
+    @PostMapping
+    public ResponseEntity<?> crearOrden(
+        @AuthenticationPrincipal Usuario usuario,
+        @Valid @RequestBody OrdenRequestDTO ordenRequest
+    ) {
+        try {
+            OrdenResponseDTO orden = ordenService.crearOrdenDesdeCarrito(usuario.getId(), ordenRequest);
+            return ResponseEntity.status(HttpStatus.CREATED).body(orden);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
     @GetMapping("/{id}")
-    public ResponseEntity<OrdenResponseDTO> obtenerOrden(
+    public ResponseEntity<?> obtenerOrden(
         @AuthenticationPrincipal Usuario usuario,
         @PathVariable Long id
     ) {
-        OrdenResponseDTO orden = ordenService.obtenerOrdenPorIdYUsuario(id, usuario.getId());
-        return ResponseEntity.ok(orden);
+        try {
+            OrdenResponseDTO orden = ordenService.obtenerOrdenPorIdYUsuario(id, usuario.getId());
+            return ResponseEntity.ok(orden);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
     
     @GetMapping
-    public ResponseEntity<List<OrdenResponseDTO>> obtenerHistorialOrdenes(
+    public ResponseEntity<?> obtenerHistorialOrdenes(
         @AuthenticationPrincipal Usuario usuario
     ) {
-        List<OrdenResponseDTO> ordenes = ordenService.obtenerOrdenesPorUsuario(usuario.getId());
-        return ResponseEntity.ok(ordenes);
+        try {
+            List<OrdenResponseDTO> ordenes = ordenService.obtenerOrdenesPorUsuario(usuario.getId());
+            return ResponseEntity.ok(ordenes);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+    
+    // Endpoint para cancelar una orden
+    @PostMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarOrden(
+        @AuthenticationPrincipal Usuario usuario,
+        @PathVariable Long id
+    ) {
+        try {
+            OrdenResponseDTO orden = ordenService.cancelarOrden(id, usuario.getId());
+            return ResponseEntity.ok(orden);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }

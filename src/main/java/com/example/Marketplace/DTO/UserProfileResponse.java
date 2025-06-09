@@ -2,45 +2,31 @@ package com.example.Marketplace.DTO;
 
 import com.example.Marketplace.Entity.Rol;
 
-public class AuthenticationResponse {
-
-    private String token;
+public class UserProfileResponse {
     private String username;
     private Rol role;
 
-    // Constructor, getters y setters
-    public AuthenticationResponse(String token) {
-        this.token = token;
+    public UserProfileResponse() {
     }
-    
-    public AuthenticationResponse(String token, String username, Rol role) {
-        this.token = token;
+
+    public UserProfileResponse(String username, Rol role) {
         this.username = username;
         this.role = role;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-    
     public String getUsername() {
         return username;
     }
-    
+
     public void setUsername(String username) {
         this.username = username;
     }
-    
+
     public Rol getRole() {
         return role;
     }
-    
+
     public void setRole(Rol role) {
         this.role = role;
     }
 }
-

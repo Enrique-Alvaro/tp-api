@@ -1,5 +1,6 @@
 package com.example.Marketplace.Service.Orden;
 
+import com.example.Marketplace.DTO.OrdenConfirmacionDTO;
 import com.example.Marketplace.DTO.OrdenRequestDTO;
 import com.example.Marketplace.DTO.OrdenResponseDTO;
 import com.example.Marketplace.Entity.Carrito;
@@ -8,13 +9,17 @@ import com.example.Marketplace.Entity.ItemCarrito;
 import com.example.Marketplace.Entity.ItemOrden;
 import com.example.Marketplace.Entity.Orden;
 import com.example.Marketplace.Entity.Producto;
+import com.example.Marketplace.Entity.VentaDetalle;
 import com.example.Marketplace.Exception.CarritoNotFoundException;
 import com.example.Marketplace.Exception.OrdenNotFoundException;
+import com.example.Marketplace.Exception.PagoRechazadoException;
 import com.example.Marketplace.Exception.StockInsuficienteException;
 import com.example.Marketplace.Repository.CarritoRepository;
 import com.example.Marketplace.Repository.OrdenRepository;
 import com.example.Marketplace.Repository.ProductoRepository;
 import com.example.Marketplace.Repository.UsuarioRepository;
+import com.example.Marketplace.Repository.VentaDetalleRepository;
+import com.example.Marketplace.Service.Pago.SimuladorPago;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,18 +34,21 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class OrdenServiceImpl {
+public class OrdenServiceImpl implements OrdenService {
     
     private final CarritoRepository carritoRepository;
     private final OrdenRepository ordenRepository;
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final VentaDetalleRepository ventaDetalleRepository;
+    private final SimuladorPago simuladorPago;
         
+    @Override
     @Transactional
     public OrdenResponseDTO crearOrdenDesdeCarrito(Long usuarioId, OrdenRequestDTO ordenRequest) {
-        // 1. Obtener el carrito
+        // 1. Obtener el carrito automáticamente desde el usuarioId
         Carrito carrito = carritoRepository.findByUsuarioId(usuarioId)
-            .orElseThrow(() -> new CarritoNotFoundException("Carrito no encontrado"));
+            .orElseThrow(() -> new CarritoNotFoundException("No se encontró un carrito asociado al usuario"));
         
         if (carrito.getItems().isEmpty()) {
             throw new IllegalStateException("El carrito está vacío");
@@ -56,7 +64,11 @@ public class OrdenServiceImpl {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         
         // 4. Calcular total con descuento si aplica
-        BigDecimal total = calcularTotalConDescuento(subtotal, ordenRequest.getCodigoDescuento());
+        BigDecimal descuentoAplicado = BigDecimal.ZERO;
+        if ("PROMO2025".equalsIgnoreCase(ordenRequest.getCodigoDescuento())) {
+            descuentoAplicado = subtotal.multiply(new BigDecimal("0.10"));
+        }
+        BigDecimal total = subtotal.subtract(descuentoAplicado);
         
         // 5. Crear la orden
         Orden orden = new Orden();
@@ -64,10 +76,11 @@ public class OrdenServiceImpl {
         orden.setDireccionEnvio(ordenRequest.getDireccionEnvio());
         orden.setMetodoPago(ordenRequest.getMetodoPago());
         orden.setFechaCreacion(LocalDateTime.now());
-        orden.setEstado(EstadoOrden.PENDIENTE);
+        orden.setEstado(EstadoOrden.PROCESANDO_PAGO);  // Inicia en estado procesando pago
         orden.setCodigoDescuento(ordenRequest.getCodigoDescuento());
-        orden.setSubtotal(subtotal); // <-- ESTABLECER EL SUBTOTAL
-        orden.setTotal(total);       // <-- ESTABLECER EL TOTAL
+        orden.setSubtotal(subtotal);
+        orden.setTotal(total);
+        orden.setNotasDeEntrega(ordenRequest.getNotasDeEntrega());
         
         // 6. Crear items de la orden
         for (ItemCarrito itemCarrito : carrito.getItems()) {
@@ -80,31 +93,86 @@ public class OrdenServiceImpl {
                 .multiply(BigDecimal.valueOf(itemCarrito.getCantidad())));
             
             orden.getItems().add(itemOrden);
-            
-            // Actualizar stock del producto
-            Producto producto = itemCarrito.getProducto();
-            producto.setStock(producto.getStock() - itemCarrito.getCantidad());
-            productoRepository.save(producto);
         }
         
-        // 7. Guardar la orden
+        // Guardar la orden inicialmente
         Orden ordenGuardada = ordenRepository.save(orden);
         
-        // 8. Vaciar el carrito
-        carrito.getItems().clear();
-        carrito.setTotal(BigDecimal.ZERO);
-        carritoRepository.save(carrito);
+        // 7. Procesar el pago
+        String detallesPago = "";
+        if ("TARJETA".equalsIgnoreCase(ordenRequest.getMetodoPago())) {
+            detallesPago = "•••• " + (ordenRequest.getNumeroTarjeta() != null ? 
+                ordenRequest.getNumeroTarjeta() : "1234");
+        } else if ("TRANSFERENCIA".equalsIgnoreCase(ordenRequest.getMetodoPago())) {
+            detallesPago = "Transferencia bancaria";
+        } else {
+            detallesPago = "Efectivo en entrega";
+        }
+        
+        // Simulación del pago
+        SimuladorPago.ResultadoPago resultadoPago = simuladorPago.procesarPago(
+            ordenRequest.getMetodoPago(), 
+            total, 
+            detallesPago
+        );
+        
+        // 8. Actualizar la orden según resultado del pago
+        if (resultadoPago == SimuladorPago.ResultadoPago.APROBADO) {
+            // Pago exitoso
+            String codigoTransaccion = simuladorPago.generarCodigoTransaccion();
+            ordenGuardada.setEstado(EstadoOrden.PAGADA);
+            ordenGuardada.setCodigoTransaccion(codigoTransaccion);
+            ordenGuardada.setDetallesPago(detallesPago);
+            ordenGuardada.setFechaPago(LocalDateTime.now());
+            ordenGuardada = ordenRepository.save(ordenGuardada);
+            
+            // Actualizar stock de productos y registrar las ventas
+            LocalDateTime fechaVenta = LocalDateTime.now();
+            for (ItemCarrito itemCarrito : carrito.getItems()) {
+                Producto producto = itemCarrito.getProducto();
+                
+                // Actualizar stock
+                producto.setStock(producto.getStock() - itemCarrito.getCantidad());
+                productoRepository.save(producto);
+                
+                // Registrar venta para el vendedor del producto
+                VentaDetalle ventaDetalle = VentaDetalle.builder()
+                    .vendedor(producto.getVendedor())
+                    .producto(producto)
+                    .nombreProducto(producto.getNombre())
+                    .precioUnitario(producto.getPrecio())
+                    .cantidad(itemCarrito.getCantidad())
+                    .subtotal(producto.getPrecio().multiply(BigDecimal.valueOf(itemCarrito.getCantidad())))
+                    .fechaVenta(fechaVenta)
+                    .orden(ordenGuardada)
+                    .estadoOrden(EstadoOrden.PAGADA)
+                    .build();
+                
+                ventaDetalleRepository.save(ventaDetalle);
+            }
+            
+            // Vaciar el carrito
+            carrito.getItems().clear();
+            carrito.setTotal(BigDecimal.ZERO);
+            carritoRepository.save(carrito);
+            
+        } else {
+            // Pago rechazado o error
+            ordenGuardada.setEstado(EstadoOrden.PAGO_RECHAZADO);
+            ordenGuardada = ordenRepository.save(ordenGuardada);
+            
+            if (resultadoPago == SimuladorPago.ResultadoPago.RECHAZADO) {
+                throw new PagoRechazadoException("El pago ha sido rechazado. Por favor, intente con otro método de pago.");
+            } else {
+                throw new PagoRechazadoException("Ha ocurrido un error al procesar el pago. Por favor, intente nuevamente.");
+            }
+        }
         
         // 9. Convertir a DTO y retornar
         return convertirAOrdenResponseDTO(ordenGuardada);
     }
 
-    private BigDecimal calcularTotalConDescuento(BigDecimal subtotal, String codigoDescuento) {
-        if ("PROMO2025".equalsIgnoreCase(codigoDescuento)) {
-            return subtotal.multiply(new BigDecimal("0.90")); // Aplica 10% de descuento
-        }
-        return subtotal;
-    }
+    // Método eliminado por estar duplicado
     
     private void validarStockDisponible(List<ItemCarrito> items) {
         List<String> productosSinStock = items.stream()
@@ -146,11 +214,18 @@ public class OrdenServiceImpl {
             .numeroFactura(orden.getNumeroFactura())
             .fechaCreacion(orden.getFechaCreacion())
             .estado(orden.getEstado().name())
-            .subtotal(orden.getTotal().add(descuentoAplicado)) // Mostrar subtotal sin descuento
-            .total(orden.getTotal()) // Total con descuento aplicado
+            .subtotal(orden.getSubtotal())
+            .total(orden.getTotal())
+            .descuentoAplicado(descuentoAplicado)
             .codigoDescuento(orden.getCodigoDescuento())
             .direccionEnvio(orden.getDireccionEnvio())
             .metodoPago(orden.getMetodoPago())
+            // Información de pago
+            .codigoTransaccion(orden.getCodigoTransaccion())
+            .detallesPago(orden.getDetallesPago())
+            .fechaPago(orden.getFechaPago())
+            // Información de envío
+            .notasDeEntrega(orden.getNotasDeEntrega())
             .items(itemsDTO)
             .build();
     }
@@ -168,5 +243,105 @@ public class OrdenServiceImpl {
         return ordenRepository.findByUsuarioIdOrderByFechaCreacionDesc(usuarioId).stream()
             .map(this::convertirAOrdenResponseDTO)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    public OrdenConfirmacionDTO obtenerResumenOrden(Long usuarioId, OrdenRequestDTO ordenRequest) {
+        // 1. Obtener el carrito del usuario
+        Carrito carrito = carritoRepository.findByUsuarioId(usuarioId)
+            .orElseThrow(() -> new CarritoNotFoundException("No se encontró un carrito asociado al usuario"));
+        
+        if (carrito.getItems().isEmpty()) {
+            throw new IllegalStateException("El carrito está vacío");
+        }
+        
+        // 2. Validar stock antes de mostrar resumen
+        validarStockDisponible(carrito.getItems());
+        
+        // 3. Convertir items del carrito a DTO de resumen
+        List<OrdenConfirmacionDTO.ItemResumenDTO> itemsResumen = carrito.getItems().stream()
+            .map(item -> OrdenConfirmacionDTO.ItemResumenDTO.builder()
+                .productoId(item.getProducto().getId())
+                .nombre(item.getProducto().getNombre())
+                .cantidad(item.getCantidad())
+                .precioUnitario(item.getProducto().getPrecio())
+                .subtotal(item.getProducto().getPrecio().multiply(BigDecimal.valueOf(item.getCantidad())))
+                .build())
+            .collect(Collectors.toList());
+        
+        // 4. Calcular subtotal
+        BigDecimal subtotal = itemsResumen.stream()
+            .map(OrdenConfirmacionDTO.ItemResumenDTO::getSubtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // 5. Calcular descuento si hay código
+        BigDecimal descuento = BigDecimal.ZERO;
+        BigDecimal total = subtotal;
+        
+        if ("PROMO2025".equalsIgnoreCase(ordenRequest.getCodigoDescuento())) {
+            descuento = subtotal.multiply(new BigDecimal("0.10"));
+            total = subtotal.subtract(descuento);
+        }
+        
+        // 6. Construir y retornar el DTO de confirmación
+        return OrdenConfirmacionDTO.builder()
+            .items(itemsResumen)
+            .direccionEnvio(ordenRequest.getDireccionEnvio())
+            .metodoPago(ordenRequest.getMetodoPago())
+            .subtotal(subtotal)
+            .descuento(descuento)
+            .total(total)
+            .codigoDescuento(ordenRequest.getCodigoDescuento())
+            .build();
+    }
+
+    @Override
+    @Transactional
+    public OrdenResponseDTO cancelarOrden(Long ordenId, Long usuarioId) {
+        // 1. Buscar la orden y verificar que pertenezca al usuario
+        Orden orden = ordenRepository.findByIdAndUsuarioId(ordenId, usuarioId)
+            .orElseThrow(() -> new OrdenNotFoundException(
+                "No se encontró la orden con ID: " + ordenId + " para el usuario: " + usuarioId
+            ));
+        
+        // 2. Verificar si se puede cancelar (solo en ciertos estados)
+        if (orden.getEstado() == EstadoOrden.ENVIADA || 
+            orden.getEstado() == EstadoOrden.EN_TRANSITO ||
+            orden.getEstado() == EstadoOrden.ENTREGADA) {
+            throw new IllegalStateException(
+                "No se puede cancelar la orden porque ya está en estado: " + orden.getEstado()
+            );
+        }
+        
+        // 3. Si la orden ya estaba pagada, restaurar el stock
+        if (orden.getEstado() == EstadoOrden.PAGADA || 
+            orden.getEstado() == EstadoOrden.PREPARANDO_ENVIO) {
+            // Devolver stock a los productos
+            for (ItemOrden item : orden.getItems()) {
+                Producto producto = item.getProducto();
+                producto.setStock(producto.getStock() + item.getCantidad());
+                productoRepository.save(producto);
+            }
+        }
+        
+        // 4. Actualizar el estado de la orden
+        orden.setEstado(EstadoOrden.CANCELADA);
+        ordenRepository.save(orden);
+        
+        // 4.1 Actualizar el estado de los detalles de venta asociados
+        List<VentaDetalle> ventasAsociadas = ventaDetalleRepository.findByProductoIdIn(
+            orden.getItems().stream()
+                .map(item -> item.getProducto().getId())
+                .collect(Collectors.toList()));
+                
+        for (VentaDetalle venta : ventasAsociadas) {
+            if (venta.getOrden().getId().equals(orden.getId())) {
+                venta.setEstadoOrden(EstadoOrden.CANCELADA);
+                ventaDetalleRepository.save(venta);
+            }
+        }
+        
+        // 5. Convertir a DTO y retornar
+        return convertirAOrdenResponseDTO(orden);
     }
 }

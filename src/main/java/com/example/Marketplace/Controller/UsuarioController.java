@@ -1,9 +1,11 @@
 package com.example.Marketplace.Controller;
 
+import com.example.Marketplace.DTO.UserProfileResponse;
 import com.example.Marketplace.Entity.Usuario;
 import com.example.Marketplace.Service.Usuario.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,6 +16,17 @@ import java.util.List;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileResponse> getUserProfile(@AuthenticationPrincipal Usuario usuario) {
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+        UserProfileResponse profile = new UserProfileResponse();
+        profile.setUsername(usuario.getUsername());
+        profile.setRole(usuario.getRole());
+        return ResponseEntity.ok(profile);
+    }
 
     @GetMapping
     public ResponseEntity<List<Usuario>> getAll() {
