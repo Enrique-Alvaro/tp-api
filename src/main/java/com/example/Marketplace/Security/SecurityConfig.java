@@ -28,9 +28,10 @@ public class SecurityConfig {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()  // Login y registro sin token
-                        .anyRequest().authenticated()                 // El resto necesita token
-                )
+                    .requestMatchers("/api/auth/**").permitAll()      // Login y registro sin token
+                    .requestMatchers("/api/productos/**").permitAll() // Productos públicos
+                    .anyRequest().authenticated()                     // El resto necesita token
+)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

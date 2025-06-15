@@ -11,8 +11,7 @@ public class AuthenticationRequest {
     private String apellido;
     private Rol role;
 
-    public AuthenticationRequest() {
-    }
+    public AuthenticationRequest() {}
 
     public AuthenticationRequest(String username, String email, String password, String nombre, String apellido, Rol role) {
         this.username = username;

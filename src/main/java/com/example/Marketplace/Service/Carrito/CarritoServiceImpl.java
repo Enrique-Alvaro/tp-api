@@ -29,11 +29,11 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public CarritoResponseDTO obtenerCarritoDTO(Long usuarioId) {
         Carrito carrito = obtenerOCrearCarrito(usuarioId);
-        
+
         List<ItemCarritoResponseDTO> itemsDTO = carrito.getItems().stream()
             .map(this::convertirItemADTO)
             .toList();
-        
+
         BigDecimal total = calcularTotalCarrito(carrito.getId());
         carrito.setTotal(total);
         carritoRepository.save(carrito);
@@ -49,7 +49,6 @@ public class CarritoServiceImpl implements CarritoService {
     @Override
     @Transactional
     public CarritoResponseDTO agregarProducto(Long usuarioId, ItemCarritoRequestDTO itemDTO) {
-        // Validaciones
         if (itemDTO == null || itemDTO.getProductoId() == null || itemDTO.getCantidad() <= 0) {
             throw new IllegalArgumentException("Datos del ítem inválidos");
         }
@@ -57,45 +56,35 @@ public class CarritoServiceImpl implements CarritoService {
         Producto producto = productoRepository.findById(itemDTO.getProductoId())
             .orElseThrow(() -> new ProductoNotFoundException(itemDTO.getProductoId()));
 
-        // Obtener o crear carrito atómicamente
         Carrito carrito = obtenerOCrearCarrito(usuarioId);
 
-        // Manejar ítem existente o nuevo
         Optional<ItemCarrito> itemExistente = itemCarritoRepository
             .findByCarritoIdAndProductoId(carrito.getId(), itemDTO.getProductoId());
 
         ItemCarrito item;
-        
+
         if (itemExistente.isPresent()) {
             item = itemExistente.get();
             int cantidadActual = item.getCantidad();
             int nuevaCantidad = itemDTO.getCantidad();
-            
-            // Si queremos reducir la cantidad
-            if (nuevaCantidad < cantidadActual) {
-                // Devolvemos la diferencia al stock
-                int diferencia = cantidadActual - nuevaCantidad;
-                producto.setStock(producto.getStock() + diferencia);
-                item.setCantidad(nuevaCantidad);
-            } else if (nuevaCantidad > cantidadActual) {
-                // Queremos aumentar la cantidad, verificamos stock
+
+            // Solo validar stock, NO descontar aquí
+            if (nuevaCantidad > cantidadActual) {
                 int diferencia = nuevaCantidad - cantidadActual;
                 if (producto.getStock() < diferencia) {
                     throw new StockInsuficienteException(
-                        "Stock insuficiente para " + producto.getNombre() + 
+                        "Stock insuficiente para " + producto.getNombre() +
                         ". Disponible: " + producto.getStock()
                     );
                 }
-                producto.setStock(producto.getStock() - diferencia);
-                item.setCantidad(nuevaCantidad);
-            } else {
-                // La cantidad es la misma, no se hace nada
             }
+            item.setCantidad(nuevaCantidad);
+            item.setSubtotal(producto.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad())));
         } else {
-            // Nuevo ítem, verificar stock completo
+            // Nuevo ítem, solo validar stock
             if (producto.getStock() < itemDTO.getCantidad()) {
                 throw new StockInsuficienteException(
-                    "Stock insuficiente para " + producto.getNombre() + 
+                    "Stock insuficiente para " + producto.getNombre() +
                     ". Disponible: " + producto.getStock()
                 );
             }
@@ -103,15 +92,12 @@ public class CarritoServiceImpl implements CarritoService {
             item.setCarrito(carrito);
             item.setProducto(producto);
             item.setCantidad(itemDTO.getCantidad());
-            
-            // Actualizar stock del producto
-            producto.setStock(producto.getStock() - itemDTO.getCantidad());
+            item.setSubtotal(producto.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad())));
         }
+        // NO modificar producto.setStock aquí
 
         itemCarritoRepository.save(item);
-        productoRepository.save(producto);
 
-        // Actualizar total del carrito
         BigDecimal total = calcularTotalCarrito(carrito.getId());
         carrito.setTotal(total);
         carritoRepository.save(carrito);
@@ -123,18 +109,12 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public CarritoResponseDTO eliminarProducto(Long usuarioId, Long productoId) {
         Carrito carrito = obtenerOCrearCarrito(usuarioId);
-        
+
         itemCarritoRepository.findByCarritoIdAndProductoId(carrito.getId(), productoId)
             .ifPresent(item -> {
-                // Devolver stock al producto
-                Producto producto = item.getProducto();
-                producto.setStock(producto.getStock() + item.getCantidad());
-                productoRepository.save(producto);
-                
-                // Eliminar ítem
+                // Eliminar ítem (NO modificar stock aquí)
                 itemCarritoRepository.delete(item);
-                
-                // Actualizar total
+
                 BigDecimal total = calcularTotalCarrito(carrito.getId());
                 carrito.setTotal(total);
                 carritoRepository.save(carrito);
@@ -147,21 +127,13 @@ public class CarritoServiceImpl implements CarritoService {
     @Transactional
     public CarritoResponseDTO vaciarCarrito(Long usuarioId) {
         Carrito carrito = obtenerOCrearCarrito(usuarioId);
-        
-        // Devolver stock de todos los ítems
-        carrito.getItems().forEach(item -> {
-            Producto producto = item.getProducto();
-            producto.setStock(producto.getStock() + item.getCantidad());
-            productoRepository.save(producto);
-        });
-        
-        // Eliminar todos los ítems
+
+        // Eliminar todos los ítems (NO modificar stock aquí)
         itemCarritoRepository.deleteByCarritoId(carrito.getId());
-        
-        // Actualizar carrito
+
         carrito.setTotal(BigDecimal.ZERO);
         carritoRepository.save(carrito);
-        
+
         return obtenerCarritoDTO(usuarioId);
     }
 
@@ -170,16 +142,14 @@ public class CarritoServiceImpl implements CarritoService {
             .orElseGet(() -> {
                 Usuario usuario = usuarioRepository.findById(usuarioId)
                     .orElseThrow(() -> new UsuarioNotFoundException(usuarioId));
-                
+
                 Carrito nuevoCarrito = new Carrito();
                 nuevoCarrito.setUsuario(usuario);
                 nuevoCarrito.setItems(new ArrayList<>());
                 nuevoCarrito.setTotal(BigDecimal.ZERO);
-                
-                // Establecer relación bidireccional
+
                 usuario.setCarrito(nuevoCarrito);
-                
-                // Guardar (la relación en usuario se guarda en cascada)
+
                 return carritoRepository.save(nuevoCarrito);
             });
     }
@@ -187,7 +157,7 @@ public class CarritoServiceImpl implements CarritoService {
     private ItemCarritoResponseDTO convertirItemADTO(ItemCarrito item) {
         Producto producto = item.getProducto();
         BigDecimal subtotal = producto.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad()));
-        
+
         return ItemCarritoResponseDTO.builder()
             .productoId(producto.getId())
             .nombre(producto.getNombre())

@@ -24,7 +24,6 @@ public class ProductoController {
 
     // GET /productos → Listar productos con stock, filtrar por nombre y/o categoría
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ProductoResponseDTO>> getAllProductos(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Categoria categoria) {

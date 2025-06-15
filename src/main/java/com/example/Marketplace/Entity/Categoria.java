@@ -5,5 +5,6 @@ public enum Categoria {
     JUEGOS,
     ACCESORIOS,
     HARDWARE,
-    OTROS
+    OTROS,
+    PERIFERICOS
 }

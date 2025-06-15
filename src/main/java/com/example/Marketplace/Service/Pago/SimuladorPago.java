@@ -38,7 +38,7 @@ public class SimuladorPago {
         log.info("Procesando pago de {} con método: {}, detalles: {}", monto, metodoPago, detalles);
         
         // Simulación de resultados basados en el monto y el método de pago
-        if (monto.compareTo(new BigDecimal("10000")) > 0) {
+        if (monto.compareTo(new BigDecimal("1000000")) > 0) {
             log.warn("Pago rechazado: monto demasiado alto");
             return ResultadoPago.RECHAZADO;
         }
