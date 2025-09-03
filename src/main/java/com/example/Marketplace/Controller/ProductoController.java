@@ -5,6 +5,7 @@ import com.example.Marketplace.Service.Producto.ProductoServiceImpl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class ProductoController {
 
     // GET /productos → Listar productos con stock
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Producto>> getAllProductos() {
         return ResponseEntity.ok(productoService.getAllConStock());
     }
@@ -33,29 +35,38 @@ public class ProductoController {
     }
 
     // POST /productos → Crear producto
+    // POST /productos → Crear producto (solo VENDEDOR)
     @PostMapping
-    public ResponseEntity<Producto> createProducto(@RequestBody Producto producto) {
-        return ResponseEntity.ok(productoService.create(producto));
+    @PreAuthorize("hasRole('VENDEDOR')")
+    public ResponseEntity<String> createProducto(@RequestBody Producto producto) {
+        Producto creado = productoService.create(producto);
+        if (creado != null) {
+            return ResponseEntity.ok("Producto creado correctamente con ID: " + creado.getId());
+        } else {
+            return ResponseEntity.badRequest().body("No se pudo crear el producto.");
+        }
     }
 
-    // PUT /productos/{id} → Modificar producto
+    // PUT /productos/{id} → Modificar producto (solo VENDEDOR)
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
+    @PreAuthorize("hasRole('VENDEDOR')")
+    public ResponseEntity<String> updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
         Producto updated = productoService.update(id, producto);
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok("Producto actualizado correctamente con ID: " + updated.getId());
     }
 
-    // DELETE /productos/{id} → Eliminar producto
+    // DELETE /productos/{id} → Eliminar producto (solo VENDEDOR)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProducto(@PathVariable Long id) {
+    @PreAuthorize("hasRole('VENDEDOR')")
+    public ResponseEntity<String> deleteProducto(@PathVariable Long id) {
         boolean eliminado = productoService.delete(id);
         if (!eliminado) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Producto eliminado correctamente con ID: " + id);
     }
 
 
